@@ -7,7 +7,7 @@ Incompressible MHD in two dimensions with mixed discontinuous Galerkin / Fourier
 </p>
 
 ## About
-Variables: System solved in Elsasser formulation in 2D. Velocity and magnetic fields are in-plane.
+System solved in Elsasser formulation in 2D. Velocity and magnetic fields are in-plane.
 
 Work in progress utilizing experimental spectral techniques
 
