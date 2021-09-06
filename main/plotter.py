@@ -1,7 +1,7 @@
 import cupy as cp
 import numpy as np
 import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
+import matplotlib.animation as animation
 
 
 class Plotter2D:
@@ -138,3 +138,60 @@ class Plotter2D:
 
     def show(self):
         plt.show()
+
+    def animate2d(self, stepper, grids):
+        fig, ax = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
+
+        def animate_frame(idx):
+            # clear existing contours
+            ax[0].collections = []
+            ax[0].patches = []
+            ax[1].collections = []
+            ax[1].patches = []
+
+            # vorticity
+            spectrum_x = grids.fourier_transform(function=cp.asarray(
+                stepper.saved_velocity[idx][0, 1:-1, :, 1:-1, :]))
+            spectrum_y = grids.fourier_transform(function=cp.asarray(
+                stepper.saved_velocity[idx][1, 1:-1, :, 1:-1, :]))
+            # UE = grids.inverse_transform_linspace(spectrum=spectrum_x)
+            # VE = grids.inverse_transform_linspace(spectrum=spectrum_y)
+            # velocity = cp.sqrt(UE ** 2.0 + VE ** 2.0).get()
+            vorticity = grids.inverse_transform_linspace(
+                spectrum=(cp.multiply(1j * grids.x.d_wave_numbers[:, None], spectrum_y) -
+                          cp.multiply(1j * grids.y.d_wave_numbers[None, :], spectrum_x))
+            ).get()
+            # current density
+            spectrum_x = grids.fourier_transform(function=cp.asarray(
+                stepper.saved_magnetic[idx][0, 1:-1, :, 1:-1, :]))
+            spectrum_y = grids.fourier_transform(function=cp.asarray(
+                stepper.saved_magnetic[idx][1, 1:-1, :, 1:-1, :]))
+            # UE = grids.inverse_transform_linspace(spectrum=spectrum_x)
+            # VE = grids.inverse_transform_linspace(spectrum=spectrum_y)
+            # velocity = cp.sqrt(UE ** 2.0 + VE ** 2.0).get()
+            current_density = grids.inverse_transform_linspace(
+                spectrum=(cp.multiply(1j * grids.x.d_wave_numbers[:, None], spectrum_y) -
+                          cp.multiply(1j * grids.y.d_wave_numbers[None, :], spectrum_x))
+            ).get()
+
+            # plot momentum and vorticity
+            m_idx = 0
+            ax[m_idx].set_xlim(-self.L / 2, self.L / 2)
+            ax[m_idx].set_ylim(-self.L / 2, self.L / 2)
+            cb = np.linspace(np.amin(vorticity), np.amax(vorticity), num=100)
+            ax[m_idx].contourf(self.XE, self.YE, vorticity, cb, cmap=self.colormap)
+            ax[m_idx].set_title(r'Fluid vorticity $\nabla\times\vec{v}$')
+
+            v_idx = 1
+            ax[v_idx].set_xlim(-self.L / 2, self.L / 2)
+            ax[v_idx].set_ylim(-self.L / 2, self.L / 2)
+            cb_v = np.linspace(np.amin(current_density), np.amax(current_density), num=100)
+            ax[v_idx].contourf(self.XE, self.YE, current_density, cb_v, cmap=self.colormap)
+            ax[v_idx].set_title(r'Current density $\nabla\times\vec{B}$')
+
+            # set figure title
+            fig.suptitle('Time t={:0.3f}'.format(stepper.saved_times[idx]))
+
+        anim_str = animation.FuncAnimation(fig, animate_frame, frames=len(stepper.saved_velocity))
+        anim_str.save(filename='movies\\animation.mp4')
+        # anim_str.save(filename='..\\movies\\animation.mp4')

@@ -56,7 +56,7 @@ class DGFlux:
         """
         Calculate the right-hand side of semi-discrete equation
         """
-        return (((self.x_flux(vector=elsasser.plus, advector=elsasser.minus,
+        return [((self.x_flux(vector=elsasser.plus, advector=elsasser.minus,
                               basis=basis.basis_x) * grids.x.J) +
                 (self.y_flux(vector=elsasser.plus, advector=elsasser.minus,
                              basis=basis.basis_y) * grids.y.J) +
@@ -65,7 +65,7 @@ class DGFlux:
                               basis=basis.basis_x) * grids.x.J) +
                  (self.y_flux(vector=elsasser.minus, advector=elsasser.plus,
                               basis=basis.basis_y) * grids.y.J) +
-                 self.source_term(elliptic=elliptic, vector=elsasser.minus, grids=grids)))
+                 self.source_term(elliptic=elliptic, vector=elsasser.minus, grids=grids))]
 
     def x_flux(self, vector, advector, basis):  # , elliptic, grid_x):
         dim = 0
@@ -75,7 +75,7 @@ class DGFlux:
         return (basis_product(flux=flux, basis_arr=basis.up,
                               axis=self.sub_element_axis[dim],
                               permutation=self.permutations[dim])
-                - self.spatial_flux(flux=flux, speed=vector.arr, basis=basis, dim=dim))
+                - self.spatial_flux(flux=flux, speed=advector.arr, basis=basis, dim=dim))
 
     def y_flux(self, vector, advector, basis):  # , elliptic, grid_y):
         dim = 1
@@ -85,7 +85,7 @@ class DGFlux:
         return (basis_product(flux=flux, basis_arr=basis.up,
                               axis=self.sub_element_axis[dim],
                               permutation=self.permutations[dim])
-                - self.spatial_flux(flux=flux, speed=vector.arr, basis=basis, dim=dim))
+                - self.spatial_flux(flux=flux, speed=advector.arr, basis=basis, dim=dim))
 
     def spatial_flux(self, flux, speed, basis, dim):
         # Allocate

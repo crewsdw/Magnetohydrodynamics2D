@@ -3,7 +3,6 @@ import cupy as cp
 import time as timer
 import grid as g
 
-
 # Dictionaries
 ssp_rk_switch = {
     1: [1],
@@ -65,7 +64,7 @@ class Stepper:
 
         # Stored array
         self.saved_times = []
-        self.saved_array = []
+        self.saved_velocity, self.saved_magnetic = [], []
 
     def get_coefficients(self):
         return np.array([ssp_rk_switch.get(self.time_order, "nothing")][0])
@@ -84,8 +83,10 @@ class Stepper:
         self.adapt_time_step(max_speeds=get_max_speeds(elsasser=elsasser),
                              pressure_dt=estimate_pressure_dt(elsasser=elsasser, elliptic=elliptic),
                              dx=grids.x.dx, dy=grids.y.dx)
-        # self.saved_array += [elsasser.plus.arr.get(), elsasser.minus.arr.get()]
-        # self.saved_times += [self.time]
+        print('Initial dt is {:0.3e}'.format(self.dt.get()))
+        self.saved_velocity += [elsasser.velocity.arr.get()]
+        self.saved_magnetic += [elsasser.magnetic.arr.get()]
+        self.saved_times += [self.time]
 
         while self.time < self.final_time:
             self.nonlinear_ssp_rk(elsasser=elsasser, basis=basis, elliptic=elliptic,
@@ -93,12 +94,15 @@ class Stepper:
             # update time and steps
             self.time += self.dt.get()
             self.steps_counter += 1
-            # Get time
-            # self.time_array = np.append(self.time_array, self.time)
             # Do write-out sometimes
             if self.time > self.write_counter * self.write_time:
                 print('\nI made it through step ' + str(self.steps_counter))
                 self.write_counter += 1
+                # Save data
+                elsasser.convert_to_basic_variables()
+                self.saved_velocity += [elsasser.velocity.arr.get()]
+                self.saved_magnetic += [elsasser.magnetic.arr.get()]
+                self.saved_times += [self.time]
                 # Filter
                 elsasser.plus.filter(grids=grids)
                 elsasser.minus.filter(grids=grids)
@@ -108,8 +112,8 @@ class Stepper:
             if cp.isnan(elsasser.plus.arr).any() or cp.isnan(elsasser.minus.arr).any():
                 print('\nCaught a nan, exiting simulation.')
                 return
-            print('\nFinal time reached, finishing simulation')
-            print('Total steps were ' + str(self.steps_counter))
+        print('\nFinal time reached, finishing simulation')
+        print('Total steps were ' + str(self.steps_counter) + ' while total write-outs were ' + str(self.write_counter))
 
     def nonlinear_ssp_rk(self, elsasser, basis, elliptic, grids, dg_flux):
         elsasser.ghost_sync()
@@ -126,13 +130,56 @@ class Stepper:
         self.adapt_time_step(max_speeds=get_max_speeds(elsasser=elsasser),
                              pressure_dt=estimate_pressure_dt(elsasser=elsasser, elliptic=elliptic),
                              dx=grids.x.dx, dy=grids.y.dx)
-        # to-do: complete shu-osher ssprk time-stepping routine
+        df_dt0 = dg_flux.semi_discrete_rhs(elsasser=elsasser, elliptic=elliptic,
+                                           basis=basis, grids=grids)
+        stage0.plus.arr[elsasser.plus.no_ghost_slice] = (elsasser.plus.arr[elsasser.plus.no_ghost_slice] +
+                                                         self.dt * df_dt0[0][elsasser.plus.no_ghost_slice])
+        stage0.minus.arr[elsasser.plus.no_ghost_slice] = (elsasser.minus.arr[elsasser.plus.no_ghost_slice] +
+                                                          self.dt * df_dt0[1][elsasser.plus.no_ghost_slice])
+        stage0.ghost_sync()
+
+        # first stage
+        elliptic.pressure_solve(elsasser=stage0, grids=grids)
+        df_dt1 = dg_flux.semi_discrete_rhs(elsasser=stage0, elliptic=elliptic,
+                                           basis=basis, grids=grids)
+        stage1.plus.arr[elsasser.plus.no_ghost_slice] = (
+                self.coefficients[0, 0] * elsasser.plus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[0, 1] * stage0.plus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[0, 2] * self.dt * df_dt1[0][elsasser.plus.no_ghost_slice]
+        )
+        stage1.minus.arr[elsasser.plus.no_ghost_slice] = (
+                self.coefficients[0, 0] * elsasser.minus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[0, 1] * stage0.minus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[0, 2] * self.dt * df_dt1[1][elsasser.plus.no_ghost_slice]
+        )
+        stage1.ghost_sync()
+
+        # second stage
+        elliptic.pressure_solve(elsasser=stage1, grids=grids)
+        df_dt2 = dg_flux.semi_discrete_rhs(elsasser=stage1, elliptic=elliptic,
+                                           basis=basis, grids=grids)
+        stage2.plus.arr[elsasser.plus.no_ghost_slice] = (
+                self.coefficients[1, 0] * elsasser.plus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[1, 1] * stage1.plus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[1, 2] * self.dt * df_dt2[0][elsasser.plus.no_ghost_slice]
+        )
+        stage2.minus.arr[elsasser.plus.no_ghost_slice] = (
+                self.coefficients[1, 0] * elsasser.minus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[1, 1] * stage1.minus.arr[elsasser.plus.no_ghost_slice] +
+                self.coefficients[1, 2] * self.dt * df_dt2[1][elsasser.plus.no_ghost_slice]
+        )
+
+        # update stage
+        elsasser.plus.arr, elsasser.minus.arr = stage2.plus.arr, stage2.minus.arr
 
     def adapt_time_step(self, max_speeds, pressure_dt, dx, dy):
-        max0_wp = max_speeds[0]  # + np.sqrt(max_pressure)
-        max1_wp = max_speeds[1]  # + np.sqrt(max_pressure)
-        self.dt = self.courant / ((max0_wp / dx) + (max1_wp / dy) +
-                                  1.0 / pressure_dt[0] + 1.0 / pressure_dt[1]) / 4.0 / 2.0
+        # max0_wp = max_speeds[0]  # + np.sqrt(max_pressure)
+        # max1_wp = max_speeds[1]  # + np.sqrt(max_pressure)
+        dt1 = self.courant / ((max_speeds[0] / dx) + (max_speeds[1] / dy) +
+                              1.0 / pressure_dt[0] + 1.0 / pressure_dt[1]) / 4.0
+        dt2 = self.courant / ((max_speeds[2] / dx) + (max_speeds[3] / dy) +
+                              1.0 / pressure_dt[2] + 1.0 / pressure_dt[3]) / 4.0
+        self.dt = cp.amin(cp.array([dt1, dt2]))
         # vis_dt = self.courant * dx * dx / 1.0e0 / (2.0 ** 0.5)
 
 
