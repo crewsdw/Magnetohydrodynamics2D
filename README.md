@@ -1,5 +1,6 @@
 # Magnetohydrodynamics2D
 Incompressible MHD in two dimensions with mixed discontinuous Galerkin / Fourier spectral method
+
 Work in progress utilizing experimental spectral techniques
 
 Project objectives mirror Incompressible2D:
