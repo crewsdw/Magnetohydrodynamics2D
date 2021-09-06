@@ -1,6 +1,8 @@
 # Magnetohydrodynamics2D
 Incompressible MHD in two dimensions with mixed discontinuous Galerkin / Fourier spectral method
 
+Variables: System solved in Elsasser formulation in 2D. Velocity and magnetic fields are in-plane.
+
 Work in progress utilizing experimental spectral techniques
 
 Project objectives mirror Incompressible2D:
