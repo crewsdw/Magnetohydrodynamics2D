@@ -204,16 +204,18 @@ class Vector:
                                slice(1, self.x_res - 1), slice(self.x_ord),
                                slice(1, self.y_res - 1), slice(self.y_ord))
 
-    def initialize(self, grids, ic_type='plus'):
+    def initialize(self, grids, ic_type='plus', numbers=None):
         # Just sine product...
+        if numbers is None:
+            numbers = [[2, 3], [2, 3]]
         x2 = cp.tensordot(grids.x.arr_cp, cp.ones((self.y_res, self.y_ord)), axes=0)
         y2 = cp.tensordot(cp.ones((self.x_res, self.x_ord)), grids.y.arr_cp, axes=0)
 
         # velocity eddies
-        velocity = eddies(x2, y2, number=[2, 3])
+        velocity = eddies(x2, y2, number=numbers[0])
 
         # magnetic
-        magnetic = eddies(x2, y2, number=[1])
+        magnetic = eddies(x2, y2, number=numbers[1])
 
         if ic_type == 'plus':
             self.arr = velocity + magnetic
@@ -298,9 +300,11 @@ class Elsasser:
         self.velocity = Vector(resolutions=resolutions, orders=orders)
         self.magnetic = Vector(resolutions=resolutions, orders=orders)
 
-    def initialize(self, grids):
-        self.plus.initialize(grids=grids, ic_type='plus')
-        self.minus.initialize(grids=grids, ic_type='minus')
+    def initialize(self, grids, numbers=None):
+        if numbers is None:
+            numbers = [[2, 3], [2, 3]]
+        self.plus.initialize(grids=grids, ic_type='plus', numbers=numbers)
+        self.minus.initialize(grids=grids, ic_type='minus', numbers=numbers)
 
     def poisson_source(self, grids):
         """

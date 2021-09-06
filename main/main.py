@@ -8,7 +8,7 @@ import timestep as ts
 
 # Parameters
 order, res_x, res_y = 8, 25, 25
-final_time, write_time = 2.0, 5.0e-2  # 1.5e0, 1.0e-2
+final_time, write_time = 1.5, 5.0e-2  # 1.5e0, 1.0e-2
 
 # Flags
 plot_ic = True
@@ -31,7 +31,7 @@ grids = g.Grid2D(basis=basis, lows=lows, highs=highs, resolutions=resolutions, l
 
 # Initialize variables
 elsasser = g.Elsasser(resolutions=resolutions_ghosts, orders=orders)
-elsasser.initialize(grids=grids)
+elsasser.initialize(grids=grids, numbers=[[2, 3, 4], [2, 3, 4]])
 elsasser.convert_to_basic_variables()
 
 # Initialize elliptic class and pressure solve
