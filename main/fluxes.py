@@ -8,13 +8,14 @@ def basis_product(flux, basis_arr, axis, permutation):
 
 
 class DGFlux:
-    def __init__(self, resolutions, orders, viscosity=False):
+    def __init__(self, resolutions, orders, viscosity=False, nu=1.0e-2):
         # flags
         self.viscosity = viscosity
 
         # parameters
         self.resolutions = resolutions
         self.orders = orders
+        self.nu = nu  # viscosity
 
         # book-keeping: permutations
         self.permutations = [(0, 1, 4, 2, 3),
@@ -116,9 +117,7 @@ class DGFlux:
         Add source term in ideal MHD momentum equation point-wise: the pressure gradient
         future work: experimental_viscosity
         """
-        nu = 1.0e-2
-
         if self.viscosity:
-            return nu * vector.laplacian(grids=grids) - elliptic.pressure_gradient.arr
+            return self.nu * vector.laplacian(grids=grids) - elliptic.pressure_gradient.arr
         else:
             return -1.0 * elliptic.pressure_gradient.arr

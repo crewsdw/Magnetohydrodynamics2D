@@ -204,20 +204,21 @@ class Vector:
                                slice(1, self.x_res - 1), slice(self.x_ord),
                                slice(1, self.y_res - 1), slice(self.y_ord))
 
-    def initialize(self, grids):
+    def initialize(self, grids, ic_type='plus'):
         # Just sine product...
         x2 = cp.tensordot(grids.x.arr_cp, cp.ones((self.y_res, self.y_ord)), axes=0)
         y2 = cp.tensordot(cp.ones((self.x_res, self.x_ord)), grids.y.arr_cp, axes=0)
 
-        # 2D ABC flow superposition
-        # number = [1, 2, 3, 4, 5]
-        number = [2, 3]
-        p = np.pi * np.random.randn(len(number))  # phases
-        # print(p)
-        arr_x = sum([cp.cos(number * y2 + p[idx]) for idx, number in enumerate(number)])
-        arr_y = sum([cp.sin(number * x2 + p[idx]) for idx, number in enumerate(number)])
+        # velocity eddies
+        velocity = eddies(x2, y2, number=[2, 3])
 
-        self.arr = cp.array([arr_x, arr_y])
+        # magnetic
+        magnetic = eddies(x2, y2, number=[1])
+
+        if ic_type == 'plus':
+            self.arr = velocity + magnetic
+        if ic_type == 'minus':
+            self.arr = velocity - magnetic
 
     def gradient_tensor(self, grids):
         """
@@ -286,6 +287,7 @@ class Elsasser:
     """
     Hold the variables for the Elsasser formulation of incompressible MHD equations
     """
+
     def __init__(self, resolutions, orders):
         # Variables
         self.plus = Vector(resolutions=resolutions, orders=orders)
@@ -297,8 +299,8 @@ class Elsasser:
         self.magnetic = Vector(resolutions=resolutions, orders=orders)
 
     def initialize(self, grids):
-        self.plus.initialize(grids=grids)
-        self.minus.initialize(grids=grids)
+        self.plus.initialize(grids=grids, ic_type='plus')
+        self.minus.initialize(grids=grids, ic_type='minus')
 
     def poisson_source(self, grids):
         """
@@ -335,3 +337,10 @@ def outer2(a, b):
     :return: tensor a_i b_j
     """
     return cp.tensordot(a, b, axes=0)
+
+
+def eddies(x2, y2, number):
+    p = np.pi * np.random.randn(len(number))  # phases
+    arr_x = sum([cp.cos(number * y2 + p[idx]) for idx, number in enumerate(number)])
+    arr_y = sum([cp.sin(number * x2 + p[idx]) for idx, number in enumerate(number)])
+    return cp.array([arr_x, arr_y])
