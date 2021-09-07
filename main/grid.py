@@ -212,10 +212,14 @@ class Vector:
         y2 = cp.tensordot(cp.ones((self.x_res, self.x_ord)), grids.y.arr_cp, axes=0)
 
         # velocity eddies
-        velocity = eddies(x2, y2, number=numbers[0])
+        # velocity = eddies(x2, y2, number=numbers[0])
 
         # magnetic
-        magnetic = eddies(x2, y2, number=numbers[1])
+        # magnetic = eddies(x2, y2, number=numbers[1])
+
+        # orszag-tang
+        velocity = cp.array([-cp.sin(y2), cp.sin(x2)])
+        magnetic = cp.array([-cp.sin(y2), cp.sin(2.0*x2)])
 
         if ic_type == 'plus':
             self.arr = velocity + magnetic

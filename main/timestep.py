@@ -175,10 +175,11 @@ class Stepper:
     def adapt_time_step(self, max_speeds, pressure_dt, dx, dy):
         # max0_wp = max_speeds[0]  # + np.sqrt(max_pressure)
         # max1_wp = max_speeds[1]  # + np.sqrt(max_pressure)
-        dt1 = self.courant / ((max_speeds[0] / dx) + (max_speeds[1] / dy) +
-                              1.0 / pressure_dt[0] + 1.0 / pressure_dt[1]) / 4.0
-        dt2 = self.courant / ((max_speeds[2] / dx) + (max_speeds[3] / dy) +
-                              1.0 / pressure_dt[2] + 1.0 / pressure_dt[3]) / 4.0
+        # pressure_dt[:] = 1.0e-4
+        dt1 = self.courant / ((max_speeds[0] / dx) + (max_speeds[1] / dy)) / 4.0  # +
+        #                       1.0 / pressure_dt[0] + 1.0 / pressure_dt[1]) / 4.0
+        dt2 = self.courant / ((max_speeds[2] / dx) + (max_speeds[3] / dy)) / 4.0  # +
+        #                       1.0 / pressure_dt[2] + 1.0 / pressure_dt[3]) / 4.0
         self.dt = cp.amin(cp.array([dt1, dt2]))
         # vis_dt = self.courant * dx * dx / 1.0e0 / (2.0 ** 0.5)
 
