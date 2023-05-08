@@ -17,4 +17,4 @@ Project objectives mirror Incompressible2D:
 2) some experimental spectral methods for the pressure Poisson equation and viscosity
 
 ### Information
-Implementation notes can be found at: https://students.washington.edu/dcrews/notes/mhd_poisson.pdf
+Implementation notes can be found at: https://dcrews.gitlab.io/potential-flux/papers/elsasser_notes.pdf
